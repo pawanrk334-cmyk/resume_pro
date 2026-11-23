@@ -1,0 +1,58 @@
+name: Build Android APK and Web App
+on:
+push:
+branches: [ main, master ]
+workflow_dispatch:
+permissions:
+contents: write
+pages: write
+id-token: write
+concurrency:
+group: "pages"
+cancel-in-progress: true
+jobs:
+build:
+runs-on: ubuntu-latest
+steps:
+- name: Checkout Repository
+uses: actions/checkout@v4
+- name: Set up Java Development Kit (JDK)
+uses: actions/setup-java@v4
+with:
+distribution: 'temurin'
+java-version: '17'
+- name: Set up Flutter Environment
+uses: subosito/flutter-action@v2
+with:
+flutter-version: '3.24.x'
+channel: 'stable'
+- name: Auto-generate Android and Web Project Wrappers
+run: |
+# Automatically generates android/ and web/ boilerplate if not present
+flutter create --platforms=android,web .
+- name: Install Project Dependencies
+run: flutter pub get
+- name: Build Installable Android APK
+run: flutter build apk --release
+- name: Upload Android APK as Downloadable File
+uses: actions/upload-artifact@v4
+with:
+name: ResumePro-App-Release-APK
+path: build/app/outputs/flutter-apk/app-release.apk
+retention-days: 14
+- name: Build Web App
+run: flutter build web --release --base-href "/${{ github.event.repository.name }}/"
+- name: Upload GitHub Pages Artifact
+uses: actions/upload-pages-artifact@v3
+with:
+path: build/web
+deploy-pages:
+needs: build
+runs-on: ubuntu-latest
+environment:
+name: github-pages
+url: ${{ steps.deployment.outputs.page_url }}
+steps:
+- name: Deploy to GitHub Pages
+id: deployment
+uses: actions/deploy-pages@v4
